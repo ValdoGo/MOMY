@@ -292,6 +292,9 @@
   </div>
 
   <script>
+    // URL do teu Cloudflare Worker para evitar bloqueios de CORS
+    const WORKER_URL = "https://streamtapr-worker.citacoesemptstudio.workers.dev/?url=";
+
     let folderHistory = [{ id: '', name: 'Raiz' }];
 
     window.onload = function() {
@@ -460,13 +463,13 @@
       }
     }
 
-    // Solução 1: Abrir o link do vídeo diretamente no navegador em uma nova aba
+    // Abrir o link do vídeo numa nova aba
     function openVideoLink(fileId) {
       const videoUrl = `https://streamtape.com/v/${fileId}`;
       window.open(videoUrl, '_blank');
     }
 
-    // Processo de Upload
+    // Processo de Upload através do Cloudflare Worker
     async function startUpload() {
       const login = document.getElementById('apiLogin').value.trim();
       const key = document.getElementById('apiKey').value.trim();
@@ -503,7 +506,8 @@
           getUrlEndpoint += `&folder=${encodeURIComponent(currentFolderId)}`;
         }
 
-        const response = await fetch(getUrlEndpoint);
+        // Requisição para pegar a URL de Upload passando pelo Worker
+        const response = await fetch(WORKER_URL + encodeURIComponent(getUrlEndpoint));
         const data = await response.json();
 
         if (data.status !== 200 || !data.result || !data.result.url) {
@@ -511,13 +515,14 @@
         }
 
         const uploadUrl = data.result.url;
-        statusText.innerText = 'Enviando arquivo...';
+        statusText.innerText = 'Enviando arquivo via Cloudflare Worker...';
 
         const formData = new FormData();
         formData.append('file', file);
 
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', uploadUrl, true);
+        // Envia o ficheiro usando o método POST através do Worker
+        xhr.open('POST', WORKER_URL + encodeURIComponent(uploadUrl), true);
 
         xhr.upload.onprogress = function (e) {
           if (e.lengthComputable) {
@@ -570,7 +575,7 @@
 
         xhr.onerror = function () {
           uploadBtn.disabled = false;
-          statusText.innerText = 'Erro na conexão.';
+          statusText.innerText = 'Erro na conexão ao enviar o arquivo.';
         };
 
         xhr.send(formData);
